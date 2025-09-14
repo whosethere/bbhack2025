@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Video Interview</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f3f4f6; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+        .header { text-align: center; margin-bottom: 30px; }
+        .header h1 { color: #1f2937; font-size: 2rem; margin-bottom: 10px; }
+        .progress-bar { width: 100%; height: 8px; background: #e5e7eb; border-radius: 4px; margin-bottom: 30px; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, #3b82f6, #1d4ed8); border-radius: 4px; transition: width 0.3s; }
+        .interview-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; }
+
+        .video-section { background: white; border-radius: 12px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .question-section { background: white; border-radius: 12px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+
+        video { width: 100%; height: 300px; background: #000; border-radius: 8px; object-fit: cover; }
+
+        .timer { text-align: center; margin: 20px 0; }
+        .timer-display { font-size: 3rem; font-weight: bold; color: #3b82f6; font-family: monospace; }
+        .timer-label { color: #6b7280; font-size: 0.875rem; margin-top: 5px; }
+
+        .question-content { margin-bottom: 24px; }
+        .question-title { color: #1f2937; font-size: 1.25rem; margin-bottom: 12px; }
+        .question-text { color: #4b5563; line-height: 1.6; font-size: 1.1rem; }
+
+        .recording-indicator { display: none; align-items: center; justify-content: center; margin: 16px 0; }
+        .recording-indicator.active { display: flex; }
+        .recording-dot { width: 12px; height: 12px; background: #ef4444; border-radius: 50%; margin-right: 8px; animation: pulse 1s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+        .controls { text-align: center; margin-top: 24px; }
+        .btn { padding: 12px 24px; border: none; border-radius: 8px; font-size: 1rem; cursor: pointer; transition: all 0.2s; }
+        .btn-primary { background: #3b82f6; color: white; }
+        .btn-primary:hover { background: #2563eb; }
+        .btn-secondary { background: #6b7280; color: white; margin-left: 12px; }
+        .btn-secondary:hover { background: #4b5563; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .instructions { background: #dbeafe; padding: 16px; border-radius: 8px; margin-bottom: 20px; }
+        .instructions h3 { color: #1e40af; margin-bottom: 8px; }
+        .instructions ul { margin-left: 20px; }
+        .instructions li { margin-bottom: 4px; color: #1e40af; }
+
+        .completion-screen { display: none; text-align: center; padding: 60px 20px; }
+        .completion-screen.active { display: block; }
+        .completion-screen h2 { color: #059669; font-size: 2rem; margin-bottom: 16px; }
+        .completion-screen p { color: #6b7280; font-size: 1.1rem; line-height: 1.6; }
+
+        .loading-screen { display: none; text-align: center; padding: 60px 20px; }
+        .loading-screen.active { display: block; }
+        .spinner { width: 40px; height: 40px; border: 4px solid #e5e7eb; border-top: 4px solid #3b82f6; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 20px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        @media (max-width: 768px) {
+            .interview-grid { grid-template-columns: 1fr; gap: 20px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>AI Video Interview</h1>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressBar" style="width: 0%"></div>
+            </div>
+            <div id="questionCounter">Pytanie 1 z 5</div>
+        </div>
+
+        <div id="interviewContent" class="interview-grid">
+            <div class="video-section">
+                <h3 style="margin-bottom: 16px; color: #1f2937;">Twoja kamera</h3>
+                <video id="videoPreview" autoplay muted playsinline></video>
+
+                <div class="recording-indicator" id="recordingIndicator">
+                    <div class="recording-dot"></div>
+                    <span>NAGRYWANIE</span>
+                </div>
+
+                <div class="timer" id="timerSection" style="display: none;">
+                    <div class="timer-display" id="timerDisplay">2:00</div>
+                    <div class="timer-label">pozostało</div>
+                </div>
+            </div>
+
+            <div class="question-section">
+                <div class="question-content">
+                    <div class="question-title" id="questionCategory">Komunikacja - Pytanie 1</div>
+                    <div class="question-text" id="questionText">Ładowanie pytania...</div>
+                </div>
+
+                <div class="instructions" id="instructions">
+                    <h3>Instrukcje:</h3>
+                    <ul>
+                        <li>Upewnij się, że masz dobrą jakość audio i video</li>
+                        <li>Mów jasno i wyraźnie</li>
+                        <li>Nagrywanie rozpocznie się po kliknięciu przycisku</li>
+                        <li>Możesz używać gestów i mimiki</li>
+                        <li>Masz 2 minuty na odpowiedź</li>
+                    </ul>
+                </div>
+
+                <div class="controls">
+                    <button class="btn btn-primary" id="startRecordingBtn" onclick="startRecording()">
+                        🎥 Rozpocznij nagrywanie odpowiedzi
+                    </button>
+                    <button class="btn btn-secondary" id="stopRecordingBtn" onclick="stopRecording()" style="display: none;">
+                        ⏹️ Zakończ nagrywanie
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="loading-screen" id="loadingScreen">
+            <div class="spinner"></div>
+            <h2>Przetwarzanie nagrania...</h2>
+            <p>Proszę czekać, analizujemy Twoją odpowiedź.</p>
+        </div>
+
+        <div class="completion-screen" id="completionScreen">
+            <h2>🎉 Rozmowa zakończona!</h2>
+            <p>Dziękujemy za udział w rozmowie AI.<br>
+            Twoje odpowiedzi zostaną przeanalizowane przez nasz system AI.<br>
+            Wyniki otrzymasz wkrótce na email.</p>
+        </div>
+    </div>
+
+    <script>
+        let currentQuestion = 0;
+        let questions = [];
+        let mediaRecorder = null;
+        let recordedChunks = [];
+        let stream = null;
+        let timer = null;
+        let timeLeft = 120;
+        const token = "{{ token }}";
+
+        // Initialize interview
+        async function initializeInterview() {
+            try {
+                const response = await fetch('/api/start-interview', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ token: token })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    questions = data.questions || [];
+                    await setupCamera();
+                    displayCurrentQuestion();
+                } else {
+                    alert('Błąd ładowania rozmowy: ' + data.error);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Błąd połączenia z serwerem');
+            }
+        }
+
+        async function setupCamera() {
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({
+                    video: { width: 1280, height: 720 },
+                    audio: true
+                });
+                document.getElementById('videoPreview').srcObject = stream;
+            } catch (error) {
+                console.error('Camera error:', error);
+                alert('Nie można uzyskać dostępu do kamery. Sprawdź uprawnienia przeglądarki.');
+            }
+        }
+
+        function displayCurrentQuestion() {
+            if (currentQuestion >= questions.length) {
+                completeInterview();
+                return;
+            }
+
+            const question = questions[currentQuestion];
+            const progress = ((currentQuestion + 1) / questions.length) * 100;
+
+            document.getElementById('progressBar').style.width = progress + '%';
+            document.getElementById('questionCounter').textContent = `Pytanie ${currentQuestion + 1} z ${questions.length}`;
+            document.getElementById('questionCategory').textContent = `${question.category} - Pytanie ${currentQuestion + 1}`;
+            document.getElementById('questionText').textContent = question.question;
+
+            // Reset UI
+            document.getElementById('startRecordingBtn').style.display = 'inline-block';
+            document.getElementById('stopRecordingBtn').style.display = 'none';
+            document.getElementById('recordingIndicator').classList.remove('active');
+            document.getElementById('timerSection').style.display = 'none';
+            timeLeft = question.time_limit_seconds || 120;
+        }
+
+        function startRecording() {
+            if (!stream) {
+                alert('Kamera nie jest gotowa');
+                return;
+            }
+
+            try {
+                recordedChunks = [];
+                mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp8,opus' });
+
+                mediaRecorder.ondataavailable = (event) => {
+                    if (event.data.size > 0) {
+                        recordedChunks.push(event.data);
+                    }
+                };
+
+                mediaRecorder.onstop = () => {
+                    uploadVideo();
+                };
+
+                mediaRecorder.start(1000);
+
+                // Update UI
+                document.getElementById('startRecordingBtn').style.display = 'none';
+                document.getElementById('stopRecordingBtn').style.display = 'inline-block';
+                document.getElementById('recordingIndicator').classList.add('active');
+                document.getElementById('timerSection').style.display = 'block';
+                document.getElementById('instructions').style.display = 'none';
+
+                // Start timer
+                startTimer();
+
+            } catch (error) {
+                console.error('Recording error:', error);
+                alert('Błąd rozpoczynania nagrywania');
+            }
+        }
+
+        function stopRecording() {
+            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                mediaRecorder.stop();
+                clearInterval(timer);
+            }
+        }
+
+        function startTimer() {
+            updateTimerDisplay();
+            timer = setInterval(() => {
+                timeLeft--;
+                updateTimerDisplay();
+
+                if (timeLeft <= 0) {
+                    stopRecording();
+                }
+            }, 1000);
+        }
+
+        function updateTimerDisplay() {
+            const mins = Math.floor(timeLeft / 60);
+            const secs = timeLeft % 60;
+            document.getElementById('timerDisplay').textContent =
+                `${mins}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        async function uploadVideo() {
+            if (recordedChunks.length === 0) return;
+
+            document.getElementById('loadingScreen').classList.add('active');
+            document.getElementById('interviewContent').style.display = 'none';
+
+            try {
+                const blob = new Blob(recordedChunks, { type: 'video/webm' });
+                const formData = new FormData();
+                const question = questions[currentQuestion];
+
+                formData.append('video', blob, `question_${currentQuestion + 1}.webm`);
+                formData.append('token', token);
+                formData.append('question_id', question.id.toString());
+                formData.append('question_text', question.question);
+
+                const response = await fetch('/api/upload-video-chunk', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+                if (result.success) {
+                    currentQuestion++;
+                    document.getElementById('loadingScreen').classList.remove('active');
+                    document.getElementById('interviewContent').style.display = 'grid';
+                    document.getElementById('instructions').style.display = 'block';
+                    displayCurrentQuestion();
+                } else {
+                    throw new Error(result.error || 'Upload failed');
+                }
+
+            } catch (error) {
+                console.error('Upload error:', error);
+                alert('Błąd wysyłania nagrania: ' + error.message);
+                document.getElementById('loadingScreen').classList.remove('active');
+                document.getElementById('interviewContent').style.display = 'grid';
+            }
+        }
+
+        async function completeInterview() {
+            document.getElementById('interviewContent').style.display = 'none';
+            document.getElementById('loadingScreen').classList.add('active');
+
+            try {
+                // Send completion request to analyze all results and send webhook
+                const response = await fetch('/api/complete-interview', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ token: token })
+                });
+
+                const result = await response.json();
+                if (result.success) {
+                    console.log('Interview completed successfully:', result);
+                } else {
+                    console.error('Interview completion failed:', result.error);
+                }
+            } catch (error) {
+                console.error('Error completing interview:', error);
+            }
+
+            // Show completion screen
+            document.getElementById('loadingScreen').classList.remove('active');
+            document.getElementById('completionScreen').classList.add('active');
+
+            // Cleanup
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+            }
+        }
+
+        // Initialize on page load
+        window.addEventListener('load', initializeInterview);
+    </script>
+</body>
+</html>
